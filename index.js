@@ -120,6 +120,16 @@ $(document).ready(() => {
 				fontSize: '24px',
 			});
 
+			// 检查图片格式的示例函数
+			const isValidImageType = (buffer) => {
+				const header = buffer.slice(0, 4).toString('hex');
+				return (
+					header.startsWith('89504e47') || // PNG
+					header.startsWith('ffd8ffe0') || // JPEG
+					header.startsWith('47494638') // GIF
+				);
+			};
+
 			// JPG转PNG核心函数
 			const convertJPGtoPNGBuffer = async (imageUrl) => {
 				// 获取图片 Blob（可选，如果图片有跨域问题，请确保服务器允许）
@@ -386,16 +396,6 @@ $(document).ready(() => {
 						extension: 'png', // 根据实际类型设置
 					});
 
-					// 检查图片格式的示例函数
-					const isValidImageType = (buffer) => {
-						const header = buffer.slice(0, 4).toString('hex');
-						console.log('header::: ', header);
-						return (
-							header.startsWith('89504e47') || // PNG
-							header.startsWith('ffd8ffe0') || // JPEG
-							header.startsWith('47494638') // GIF
-						);
-					};
 					// 验证图片格式
 					if (!isValidImageType(PngBuffer)) {
 						throw new Error('不支持的图片格式');
