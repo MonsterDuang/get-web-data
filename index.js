@@ -120,6 +120,47 @@ $(document).ready(() => {
 				fontSize: '24px',
 			});
 
+			// 安全加载图片
+			const loadImage = (buffer) => {
+				return new Promise((resolve, reject) => {
+					const blob = new Blob([buffer], { type: 'image/jpg' });
+					const url = URL.createObjectURL(blob);
+					const img = new Image();
+
+					img.onload = () => {
+						URL.revokeObjectURL(url); // 释放内存
+						resolve(img);
+					};
+
+					img.onerror = (err) => {
+						URL.revokeObjectURL(url);
+						reject(new Error('图片加载失败'));
+					};
+
+					img.src = url;
+				});
+			};
+
+			// JPG转PNG核心函数
+			const convertJpgToPng = async (jpgBuffer) => {
+				// 创建Image对象
+				const img = await loadImage(jpgBuffer);
+				// 创建Canvas
+				const canvas = document.createElement('canvas');
+				canvas.width = img.width;
+				canvas.height = img.height;
+				// 绘制到Canvas
+				const ctx = canvas.getContext('2d');
+				ctx.drawImage(img, 0, 0);
+
+				// 转换为PNG Blob
+				return new Promise((resolve) => {
+					canvas.toBlob((blob) => {
+						blob.arrayBuffer().then(resolve);
+					}, 'image/png');
+				});
+			};
+
 			// 使用 jQuery 获取图片 Buffer
 			const getImageBuffer = (url) => {
 				return new Promise((resolve, reject) => {
@@ -131,8 +172,7 @@ $(document).ready(() => {
 						},
 						success: (data) => {
 							// 将 ArrayBuffer 转换为 Uint8Array
-							const buffer = new Uint8Array(data);
-							resolve(buffer);
+							resolve(data);
 						},
 						error: (xhr, status, error) => {
 							reject(new Error(`图片加载失败: ${error}`));
@@ -360,16 +400,22 @@ $(document).ready(() => {
 
 					// 处理图片
 					const imageUrl = product.image.split('_')[0];
-					// 从网络URL添加图片（需要先下载）
-					const buffer = await getImageBuffer(imageUrl);
+					// 获取图片的buffer数据
+					const jpgBuffer = await getImageBuffer(imageUrl);
+					// 将图片格式转化为png
+					const pngBuffer = await convertJpgToPng(jpgBuffer);
+					const PngBuffer = new Uint8Array(pngBuffer);
+					console.log('PngBuffer::: ', PngBuffer);
+
 					const imageId = workbook.addImage({
-						buffer: buffer,
-						extension: 'jpeg', // 根据实际类型设置
+						buffer: PngBuffer,
+						extension: 'png', // 根据实际类型设置
 					});
 
 					// 检查图片格式的示例函数
 					const isValidImageType = (buffer) => {
 						const header = buffer.slice(0, 4).toString('hex');
+						console.log('header::: ', header);
 						return (
 							header.startsWith('89504e47') || // PNG
 							header.startsWith('ffd8ffe0') || // JPEG
@@ -377,7 +423,7 @@ $(document).ready(() => {
 						);
 					};
 					// 验证图片格式
-					if (!isValidImageType(buffer)) {
+					if (!isValidImageType(PngBuffer)) {
 						throw new Error('不支持的图片格式');
 					}
 
