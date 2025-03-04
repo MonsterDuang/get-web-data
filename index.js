@@ -120,64 +120,40 @@ $(document).ready(() => {
 				fontSize: '24px',
 			});
 
-			// 安全加载图片
-			const loadImage = (buffer) => {
-				return new Promise((resolve, reject) => {
-					const blob = new Blob([buffer], { type: 'image/jpg' });
-					const url = URL.createObjectURL(blob);
-					const img = new Image();
-
-					img.onload = () => {
-						URL.revokeObjectURL(url); // 释放内存
-						resolve(img);
-					};
-
-					img.onerror = (err) => {
-						URL.revokeObjectURL(url);
-						reject(new Error('图片加载失败'));
-					};
-
-					img.src = url;
-				});
-			};
-
 			// JPG转PNG核心函数
-			const convertJpgToPng = async (jpgBuffer) => {
-				// 创建Image对象
-				const img = await loadImage(jpgBuffer);
-				// 创建Canvas
-				const canvas = document.createElement('canvas');
-				canvas.width = img.width;
-				canvas.height = img.height;
-				// 绘制到Canvas
-				const ctx = canvas.getContext('2d');
-				ctx.drawImage(img, 0, 0);
+			const convertJPGtoPNGBuffer = async (imageUrl) => {
+				// 获取图片 Blob（可选，如果图片有跨域问题，请确保服务器允许）
+				const response = await fetch(imageUrl);
+				const blob = await response.blob();
 
-				// 转换为PNG Blob
-				return new Promise((resolve) => {
-					canvas.toBlob((blob) => {
-						blob.arrayBuffer().then(resolve);
-					}, 'image/png');
-				});
-			};
-
-			// 使用 jQuery 获取图片 Buffer
-			const getImageBuffer = (url) => {
 				return new Promise((resolve, reject) => {
-					$.ajax({
-						url: url,
-						method: 'GET',
-						xhrFields: {
-							responseType: 'arraybuffer', // 关键配置：声明需要二进制数据
-						},
-						success: (data) => {
-							// 将 ArrayBuffer 转换为 Uint8Array
-							resolve(data);
-						},
-						error: (xhr, status, error) => {
-							reject(new Error(`图片加载失败: ${error}`));
-						},
-					});
+					const img = new Image();
+					// 处理跨域问题（需要服务器允许跨域访问）
+					img.crossOrigin = 'Anonymous';
+					img.onload = async () => {
+						const canvas = document.createElement('canvas');
+						canvas.width = img.width;
+						canvas.height = img.height;
+						const ctx = canvas.getContext('2d');
+						ctx.drawImage(img, 0, 0);
+
+						// 转换为 PNG 格式
+						canvas.toBlob(async (pngBlob) => {
+							if (!pngBlob) {
+								return reject(new Error('转换失败'));
+							}
+							try {
+								// 获取 buffer
+								const buffer = await pngBlob.arrayBuffer();
+								resolve(buffer);
+							} catch (error) {
+								reject(error);
+							}
+						}, 'image/png');
+					};
+					img.onerror = reject;
+					// 使用 URL.createObjectURL 为 blob 创建临时 URL
+					img.src = URL.createObjectURL(blob);
 				});
 			};
 
@@ -401,9 +377,7 @@ $(document).ready(() => {
 					// 处理图片
 					const imageUrl = product.image.split('_')[0];
 					// 获取图片的buffer数据
-					const jpgBuffer = await getImageBuffer(imageUrl);
-					// 将图片格式转化为png
-					const pngBuffer = await convertJpgToPng(jpgBuffer);
+					const pngBuffer = await convertJPGtoPNGBuffer(imageUrl);
 					const PngBuffer = new Uint8Array(pngBuffer);
 					console.log('PngBuffer::: ', PngBuffer);
 
