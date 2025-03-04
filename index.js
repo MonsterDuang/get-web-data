@@ -316,7 +316,7 @@ $(document).ready(() => {
 				// 添加数据
 				productList.forEach(async (product, index) => {
 					const row = worksheet.addRow([
-						product.image,
+						'',
 						product.subject,
 						product.price,
 						product.orders,
@@ -362,15 +362,28 @@ $(document).ready(() => {
 					const imageUrl = product.image.split('_')[0];
 					// 从网络URL添加图片（需要先下载）
 					const buffer = await getImageBuffer(imageUrl);
-
 					const imageId = workbook.addImage({
 						buffer: buffer,
 						extension: 'jpeg', // 根据实际类型设置
 					});
 
+					// 检查图片格式的示例函数
+					const isValidImageType = (buffer) => {
+						const header = buffer.slice(0, 4).toString('hex');
+						return (
+							header.startsWith('89504e47') || // PNG
+							header.startsWith('ffd8ffe0') || // JPEG
+							header.startsWith('47494638') // GIF
+						);
+					};
+					// 验证图片格式
+					if (!isValidImageType(buffer)) {
+						throw new Error('不支持的图片格式');
+					}
+
 					worksheet.addImage(imageId, {
 						tl: { col: 0, row: rowIdx - 1 },
-						ext: { width: 100, height: 100 },
+						ext: { width: 10, height: 10 },
 						editAs: 'absolute', // 绝对定位
 					});
 				});
@@ -382,7 +395,7 @@ $(document).ready(() => {
 						const columnLength = cell.value ? cell.value.toString().length : 10;
 						if (columnLength > maxLength) maxLength = columnLength;
 					});
-					column.width = maxLength < 10 ? 10 : maxLength + 5;
+					column.width = maxLength * 2;
 				});
 
 				// 导出Excel文件
