@@ -14,7 +14,7 @@
 	"content_scripts": [
 		{
 			"matches": ["<all_urls>"],
-			"js": ["jquery.js", "xlsx.js", "index.js"]
+			"js": ["jquery.js", "exceljs.js", "index.js"]
 		}
 	]
 }
