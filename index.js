@@ -2,6 +2,7 @@
 
 $(document).ready(() => {
 	let list = [];
+	let productList = [];
 	let modelId = '';
 	let activeTab = null;
 
@@ -70,7 +71,7 @@ $(document).ready(() => {
             <h1 id="popupTitle"></h1>
             <div id="tabs"></div>
             <div id="tabContent"></div>
-						<div class="bottomBtn"><button id="exportButton">导出Excel</button></div>
+            <div class="bottomBtn"><button id="exportButton">导出Excel</button></div>
           </div>
         </div>
       `);
@@ -83,7 +84,7 @@ $(document).ready(() => {
 				left: 0,
 				width: '100%',
 				height: '100%',
-				padding: '10%',
+				padding: '30px',
 				zIndex: 9999,
 				display: 'flex',
 				alignItems: 'center',
@@ -126,22 +127,22 @@ $(document).ready(() => {
 					method: 'GET',
 					dataType: 'json',
 					success: ({ data }) => {
-						const productList = data.list[0].productList;
+						productList = data.list[0].productList;
 						const $table = $('<table></table>');
 						const $thead = $(`
-							<thead>
-								<tr>
-									<th>产品图片</th>
-									<th>产品描述</th>
-									<th>销售价格</th>
-									<th>订单数量</th>
-									<th>观看次数</th>
-									<th>人气度</th>
-									<th>最低起订量</th>
-									<th>详情链接</th>
-								</tr>
-							</thead>
-						`);
+              <thead>
+                <tr>
+                  <th>产品图片</th>
+                  <th>产品描述</th>
+                  <th>销售价格</th>
+                  <th>订单数量</th>
+                  <th>观看次数</th>
+                  <th>人气度</th>
+                  <th>最低起订量</th>
+                  <th>详情链接</th>
+                </tr>
+              </thead>
+            `);
 						const $tbody = $('<tbody></tbody>');
 
 						productList.forEach((product) => {
@@ -224,9 +225,52 @@ $(document).ready(() => {
 					},
 				});
 			};
+
 			// 导出表格数据为Excel
 			$('#exportButton').on('click', () => {
-				const wb = XLSX.utils.table_to_book($('#tabContent table')[0]);
+				const wb = XLSX.utils.book_new();
+				const ws = XLSX.utils.table_to_sheet($('#tabContent table')[0], { raw: false });
+
+				// 处理图片和超链接
+				productList.forEach((product, index) => {
+					ws['!rows'][index] = { hpt: 20 };
+					ws['!cols'][index] = { wch: 20 };
+
+					const row = index + 2; // 表头占用第一行
+					const imageUrl = product.image.split('_')[0];
+					const link = 'https:' + product.detail;
+
+					// 添加超链接
+					ws[`H${row}`].l = { Target: link };
+					ws[`H${row}`].l['Hyperlink'] = true;
+
+					// 添加图片
+					const img = new Image();
+					img.crossOrigin = 'Anonymous';
+					img.src = imageUrl;
+					img.onload = () => {
+						const canvas = document.createElement('canvas');
+						canvas.width = img.width;
+						canvas.height = img.height;
+						const ctx = canvas.getContext('2d');
+						ctx.drawImage(img, 0, 0);
+						const dataURL = canvas.toDataURL('image/png');
+						const imageData = dataURL.replace(/^data:image\/(png|jpg);base64,/, '');
+						const imageCell = XLSX.utils.aoa_to_sheet([[{ t: 's', v: '', l: { Target: imageUrl } }]]);
+						XLSX.utils.sheet_add_aoa(ws, [[{ t: 's', v: '', l: { Target: imageUrl } }]], { origin: `A${row}` });
+						XLSX.utils.sheet_add_image(ws, {
+							image: imageData,
+							type: 'base64',
+							position: {
+								type: 'twoCellAnchor',
+								from: { col: 0, row: row - 1 },
+								to: { col: 1, row: row },
+							},
+						});
+					};
+				});
+
+				XLSX.utils.book_append_sheet(wb, ws, '产品数据');
 				const title = $('#popupTitle').text();
 				const label = activeTab.label;
 				XLSX.writeFile(wb, `${title}-${label}-数据列表.xlsx`);
@@ -277,18 +321,18 @@ $(document).ready(() => {
           flex: 1;
           overflow-y: auto;
         }
-				::-webkit-scrollbar {
-					width: 6px;
-					height: 6px;
-				}
-				::-webkit-scrollbar-track {
-					background-color: transparent;
-					border-radius: 3px;
-				}
-				::-webkit-scrollbar-thumb {
-					background-color: rgba(0, 123, 255, 0.5);
-					border-radius: 3px;
-				}
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background-color: transparent;
+          border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background-color: rgba(0, 123, 255, 0.5);
+          border-radius: 3px;
+        }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -298,39 +342,39 @@ $(document).ready(() => {
           border: 1px solid #ddd;
           text-align: left;
         }
-				td a {
-					color: #007bff;
-					text-decoration: none;
-				}
-				td a:hover {
-					text-decoration: underline;
-				}
+        td a {
+          color: #007bff;
+          text-decoration: none;
+        }
+        td a:hover {
+          text-decoration: underline;
+        }
         th {
           background-color: #f2f2f2;
           position: sticky;
           top: -1px;
           z-index: 1;
         }
-				.product-image {
-					cursor: pointer;
-					width: 50px;
-					height: 50px;
-				}
-				.bottomBtn {
-					text-align: right;
-					margin-top: 20px;
-				}
-				#exportButton {
-					padding: 8px 16px;
-					background-color: #007bff;
-					color: #fff;
-					border: none;
-					border-radius: 5px;
-					cursor: pointer;
-				}
-				#exportButton:hover {
-					opacity: 0.8;
-				}
+        .product-image {
+          cursor: pointer;
+          width: 50px;
+          height: 50px;
+        }
+        .bottomBtn {
+          text-align: right;
+          margin-top: 20px;
+        }
+        #exportButton {
+          padding: 8px 16px;
+          background-color: #007bff;
+          color: #fff;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+        }
+        #exportButton:hover {
+          opacity: 0.8;
+        }
       `;
 			document.head.appendChild(style);
 
