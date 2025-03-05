@@ -40,13 +40,15 @@ $(document).ready(() => {
 				}
         #tabs {
           display: flex;
-          justify-content: center;
+          justify-content: flex-start;
           margin-top: 20px;
+					overflow-x: auto;
         }
         .tab {
           padding: 10px 20px;
           margin: 0 10px;
           cursor: pointer;
+					flex: none;
           border-bottom: 2px solid transparent;
         }
         .tab.active {
@@ -140,7 +142,8 @@ $(document).ready(() => {
 					left: 0;
 					width: 100%;
 					height: 100%;
-					padding: 30px;
+					padding: 100px 200px;
+					box-sizing: border-box;
 					z-index: 9999;
 					display: flex;
 					align-items: center;
@@ -331,7 +334,7 @@ $(document).ready(() => {
 						: smuId === '6809349780'
 						? data.list.map((x) => x.product)
 						: [];
-				$('#popupContent').append('<div class="bottomBtn"><button id="exportButton">导出Excel</button></div>');
+				if (!$('#exportButton').length) $('#popupContent').append('<div class="bottomBtn"><button id="exportButton">导出Excel</button></div>');
 				const $table = $('<table></table>');
 				const $thead = $(`
               <thead>
@@ -425,9 +428,11 @@ $(document).ready(() => {
 			$tab.on('click', () => {
 				if ($tab.hasClass('active')) return;
 				$('.tab').removeClass('active');
-				$tab.addClass('active');
+				$('.tab').attr('id', '');
 				activeTab = item;
-				console.log('activeTab::: ', activeTab);
+				$tab.addClass('active');
+				$tab.attr('id', 'active');
+				document.getElementById('active').scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 				$('#tableContent').empty();
 				$('.bottomBtn').remove();
 				getProductList(item);
