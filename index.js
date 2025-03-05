@@ -189,7 +189,7 @@ $(document).ready(() => {
 		// 添加标题行（在第一行插入）
 		const titleRow = worksheet.addRow([`类目：${title}【${label}】`]); // 插入到第一行
 		// 合并单元格（A1到C1）
-		worksheet.mergeCells('A1:F1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
+		worksheet.mergeCells('A1:G1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
 		// 设置标题样式
 		const titleStyle = {
 			font: {
@@ -214,7 +214,7 @@ $(document).ready(() => {
 		// 设置标题行高度
 		titleRow.height = 40;
 		// 设置表头
-		const headers = ['产品图片', '产品描述', '销售价格', '订单数量', '最低起订量', '详情链接'];
+		const headers = ['序号', '产品图片', '产品描述', '销售价格', '订单数量', '最低起订量', '详情链接'];
 		// 添加表头行（现在变为第二行）
 		const headerRow = worksheet.addRow(headers);
 		// 设置表头样式（复用之前的样式配置）
@@ -248,6 +248,7 @@ $(document).ready(() => {
 		productList.forEach(async (product, index) => {
 			const imageUrl = product.image.split('_')[0];
 			const row = worksheet.addRow([
+				index + 1,
 				{ text: '查看', hyperlink: imageUrl },
 				product.subject,
 				product.price,
@@ -312,7 +313,7 @@ $(document).ready(() => {
 
 	// 请求对应的数据
 	const getProductList = (item) => {
-		const api = 'https://insights.alibaba.com/openservice/gatewayService?language=zh&pageNo=1&pageSize=50&';
+		const api = 'https://insights.alibaba.com/openservice/gatewayService?language=zh&pageNo=1&pageSize=100&';
 		const params =
 			smuId === '6622646540'
 				? `modelId=${modelId}&cardId=${item.cardId}&cardType=${item.cardType}`
@@ -339,6 +340,7 @@ $(document).ready(() => {
 				const $thead = $(`
               <thead>
                 <tr>
+                  <th>序号</th>
                   <th>产品图片</th>
                   <th>产品描述</th>
                   <th>销售价格</th>
@@ -350,10 +352,11 @@ $(document).ready(() => {
             `);
 				const $tbody = $('<tbody></tbody>');
 
-				productList.forEach((product) => {
+				productList.forEach((product, index) => {
 					if (!product) return;
 					const $row = $(`
                 <tr>
+                  <td>${index + 1}</td>
                   <td><img src="${product.image}" class="product-image" /></td>
                   <td>${product.subject}</td>
                   <td>${product.price}</td>
