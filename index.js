@@ -1,10 +1,11 @@
 // 你可以在这里添加更多的代码来操作宿主网页的window对象
 
 $(document).ready(() => {
-	let list = [];
-	let productList = [];
-	let modelId = '';
+	let tabList = [];
 	let activeTab = null;
+	let smuId = '';
+	let modelId = '';
+	let productList = [];
 
 	// 动态添加样式
 	const style = document.createElement('style');
@@ -185,7 +186,7 @@ $(document).ready(() => {
 		// 添加标题行（在第一行插入）
 		const titleRow = worksheet.addRow([`类目：${title}【${label}】`]); // 插入到第一行
 		// 合并单元格（A1到C1）
-		worksheet.mergeCells('A1:H1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
+		worksheet.mergeCells('A1:F1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
 		// 设置标题样式
 		const titleStyle = {
 			font: {
@@ -210,7 +211,7 @@ $(document).ready(() => {
 		// 设置标题行高度
 		titleRow.height = 40;
 		// 设置表头
-		const headers = ['产品图片', '产品描述', '销售价格', '订单数量', '观看次数', '人气度', '最低起订量', '详情链接'];
+		const headers = ['产品图片', '产品描述', '销售价格', '订单数量', '最低起订量', '详情链接'];
 		// 添加表头行（现在变为第二行）
 		const headerRow = worksheet.addRow(headers);
 		// 设置表头样式（复用之前的样式配置）
@@ -247,9 +248,7 @@ $(document).ready(() => {
 				{ text: '查看', hyperlink: imageUrl },
 				product.subject,
 				product.price,
-				product.orders,
-				product.views,
-				product.rankScore,
+				smuId === '6622646540' ? product.orders : smuId === '1326427270' ? product.salesCount : smuId === '6809349780' ? product.prodSold180 : '',
 				product.moq,
 				{ text: '跳转', hyperlink: `https:${product.detail}` },
 			]);
@@ -310,12 +309,28 @@ $(document).ready(() => {
 
 	// 请求对应的数据
 	const getProductList = (item) => {
+		const api = 'https://insights.alibaba.com/openservice/gatewayService?language=zh&pageNo=1&pageSize=50&';
+		const params =
+			smuId === '6622646540'
+				? `modelId=${modelId}&cardId=${item.cardId}&cardType=${item.cardType}`
+				: smuId === '1326427270'
+				? `modelId=${modelId}&categoryIds=${item.sortIds}`
+				: smuId === '6809349780'
+				? `modelId=${modelId}&categoryIds=${item.categoryId || ''}&newsType=101002913`
+				: '';
 		$.ajax({
-			url: `https://insights.alibaba.com/openservice/gatewayService?modelId=${modelId}&cardId=${item.cardId}&cardType=${item.cardType}&language=zh`,
+			url: `${api}${params}`,
 			method: 'GET',
 			dataType: 'json',
 			success: ({ data }) => {
-				productList = data.list[0].productList;
+				productList =
+					smuId === '6622646540'
+						? data.list[0].productList
+						: smuId === '1326427270'
+						? data.list.map((x) => x.data)
+						: smuId === '6809349780'
+						? data.list.map((x) => x.product)
+						: [];
 				$('#popupContent').append('<div class="bottomBtn"><button id="exportButton">导出Excel</button></div>');
 				const $table = $('<table></table>');
 				const $thead = $(`
@@ -325,8 +340,6 @@ $(document).ready(() => {
                   <th>产品描述</th>
                   <th>销售价格</th>
                   <th>订单数量</th>
-                  <th>观看次数</th>
-                  <th>人气度</th>
                   <th>最低起订量</th>
                   <th>详情链接</th>
                 </tr>
@@ -335,14 +348,21 @@ $(document).ready(() => {
 				const $tbody = $('<tbody></tbody>');
 
 				productList.forEach((product) => {
+					if (!product) return;
 					const $row = $(`
                 <tr>
                   <td><img src="${product.image}" class="product-image" /></td>
                   <td>${product.subject}</td>
                   <td>${product.price}</td>
-                  <td>${product.orders}</td>
-                  <td>${product.views}</td>
-                  <td>${product.rankScore}</td>
+                  <td>${
+										smuId === '6622646540'
+											? product.orders
+											: smuId === '1326427270'
+											? product.salesCount
+											: smuId === '6809349780'
+											? product.prodSold180
+											: ''
+									}</td>
                   <td>${product.moq}</td>
                   <td><a href="${product.detail}" target="_blank">跳转</a></td>
                 </tr>
@@ -387,7 +407,9 @@ $(document).ready(() => {
         <div id="popup">
           <div id="popupContent">
             <span id="popupClose">&times;</span>
-            <h1 id="popupTitle">${list[0].rankWord}</h1>
+            <h1 id="popupTitle">${
+							smuId === '6622646540' ? tabList[0].rankWord : smuId === '1326427270' ? '新品上架' : smuId === '6809349780' ? '热门促销' : ''
+						}</h1>
             <div id="tabs"></div>
             <div id="tableContent"></div>
           </div>
@@ -397,7 +419,7 @@ $(document).ready(() => {
 
 		// 生成tabs
 		const $tabs = $('#tabs');
-		list.forEach((item, index) => {
+		tabList.forEach((item, index) => {
 			const $tab = $(`<div class="tab">${item.label}</div>`);
 			$tabs.append($tab);
 			$tab.on('click', () => {
@@ -405,6 +427,7 @@ $(document).ready(() => {
 				$('.tab').removeClass('active');
 				$tab.addClass('active');
 				activeTab = item;
+				console.log('activeTab::: ', activeTab);
 				$('#tableContent').empty();
 				$('.bottomBtn').remove();
 				getProductList(item);
@@ -466,15 +489,35 @@ $(document).ready(() => {
 	const getList = () => {
 		const scriptArr = document.querySelectorAll('script');
 		for (let item of scriptArr) {
-			if (item.dataset.suspenseModuleUuid === '6622646540') {
-				let dataStr = item.innerHTML.split(' = ')[1].split('window.moduleHtml_6622646540')[0];
+			smuId = item.dataset.suspenseModuleUuid;
+			if (['6622646540', '1326427270', '6809349780'].includes(smuId)) {
+				let dataStr = item.innerHTML.split(' = ')[1].split('window.moduleHtml_')[0];
 				// 去除多余的字符，确保JSON格式正确
 				dataStr = dataStr.trim().replace(/;$/, '');
 				try {
 					const dataObj = JSON.parse(dataStr);
-					const { _serverData, params } = dataObj._fdl_request.requestList[0];
-					list = _serverData.list;
-					modelId = JSON.parse(params).modelId;
+					if (smuId === '6622646540') {
+						// 热门爆品
+						const { _serverData, params } = dataObj._fdl_request.requestList[0];
+						tabList = _serverData.list;
+						modelId = JSON.parse(params).modelId;
+					} else if (smuId === '1326427270') {
+						// 新品上架
+						const {
+							_fdl_request_tab: { _serverData },
+							_fdl_request_waterfall: { params },
+						} = dataObj._fdl_request.requestCommon;
+						tabList = _serverData.tabList;
+						modelId = JSON.parse(params).modelId;
+					} else if (smuId === '6809349780') {
+						// 热门促销
+						const {
+							_fdl_request_nav: { _serverData },
+							_fdl_request_theme_waterfall: { params },
+						} = dataObj._fdl_request.requestCommon;
+						tabList = _serverData.list;
+						modelId = JSON.parse(params).modelId;
+					}
 					createDom();
 				} catch (error) {
 					console.error('Error parsing JSON:', error);
@@ -485,5 +528,3 @@ $(document).ready(() => {
 
 	getList();
 });
-
-// https://insights.alibaba.com/openservice/gatewayService?callback=jsonp_1741054216615_14614&modelId=10367&cardId=201268094&cardType=101002747
