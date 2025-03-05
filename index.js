@@ -174,6 +174,140 @@ $(document).ready(() => {
       `;
 	document.head.appendChild(style);
 
+	// 导出表格数据为Excel
+	const exportExcel = async () => {
+		const workbook = new ExcelJS.Workbook();
+		const worksheet = workbook.addWorksheet('产品数据');
+
+		const title = $('#popupTitle').text();
+		const label = activeTab.label;
+
+		// 添加标题行（在第一行插入）
+		const titleRow = worksheet.addRow([`类目：${title}【${label}】`]); // 插入到第一行
+		// 合并单元格（A1到C1）
+		worksheet.mergeCells('A1:H1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
+		// 设置标题样式
+		const titleStyle = {
+			font: {
+				name: '微软雅黑',
+				bold: true,
+				size: 16,
+				color: { argb: 'FFFFFFFF' }, // 白色字体
+			},
+			fill: {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FF4F81BD' }, // 深蓝色背景
+			},
+			alignment: {
+				vertical: 'middle',
+				horizontal: 'center',
+			},
+		};
+		// 应用标题样式（只需要设置合并区域的第一个单元格）
+		titleRow.getCell(1).style = titleStyle;
+
+		// 设置标题行高度
+		titleRow.height = 40;
+		// 设置表头
+		const headers = ['产品图片', '产品描述', '销售价格', '订单数量', '观看次数', '人气度', '最低起订量', '详情链接'];
+		// 添加表头行（现在变为第二行）
+		const headerRow = worksheet.addRow(headers);
+		// 设置表头样式（复用之前的样式配置）
+		const headerStyle = {
+			font: {
+				name: '微软雅黑',
+				bold: true,
+				size: 12,
+				color: { argb: 'FF000000' }, // 黑色字体
+			},
+			fill: {
+				type: 'pattern',
+				pattern: 'solid',
+				fgColor: { argb: 'FFD3D3D3' }, // 浅灰色背景
+			},
+			border: {
+				top: { style: 'thin', color: { argb: 'FF000000' } },
+				bottom: { style: 'thin', color: { argb: 'FF000000' } },
+				left: { style: 'thin', color: { argb: 'FF000000' } },
+				right: { style: 'thin', color: { argb: 'FF000000' } },
+			},
+			alignment: {
+				vertical: 'middle',
+				horizontal: 'center',
+			},
+		};
+		headerRow.eachCell((cell) => (cell.style = headerStyle));
+		headerRow.height = 25;
+
+		// 添加数据
+		productList.forEach(async (product, index) => {
+			const imageUrl = product.image.split('_')[0];
+			const row = worksheet.addRow([
+				{ text: '查看', hyperlink: imageUrl },
+				product.subject,
+				product.price,
+				product.orders,
+				product.views,
+				product.rankScore,
+				product.moq,
+				{ text: '跳转', hyperlink: `https:${product.detail}` },
+			]);
+
+			const rowIdx = index + 3;
+			worksheet.getRow(rowIdx).height = 20;
+
+			// 遍历单元格设置超链接样式
+			row.eachCell((cell) => {
+				if (cell.value && cell.value.hyperlink) {
+					// 超链接专属样式
+					cell.style = {
+						font: {
+							color: { argb: 'FF0000FF' }, // 蓝色
+							underline: true,
+							name: 'Calibri',
+						},
+						alignment: {
+							vertical: 'middle',
+							horizontal: 'center',
+						},
+					};
+					// 可选：移除默认的紫色下划线（覆盖Excel默认样式）
+					cell.value = {
+						text: cell.value.text,
+						hyperlink: cell.value.hyperlink,
+					};
+				} else {
+					// 普通单元格样式
+					cell.style = {
+						font: { name: 'Calibri' },
+						alignment: { vertical: 'middle', horizontal: 'center' },
+					};
+				}
+			});
+		});
+
+		// 自动调整列宽（按内容）
+		worksheet.columns.forEach((column) => {
+			let maxLength = 0;
+			column.eachCell({ includeEmpty: true }, (cell) => {
+				const columnLength = cell.value ? cell.value.toString().length : 10;
+				if (columnLength > maxLength) maxLength = columnLength;
+			});
+			column.width = maxLength * 2;
+		});
+
+		// 导出Excel文件
+		const buffer = await workbook.xlsx.writeBuffer();
+		const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${title}-${label}-数据列表.xlsx`;
+		a.click();
+		URL.revokeObjectURL(url);
+	};
+
 	// 请求对应的数据
 	const getProductList = (item) => {
 		$.ajax({
@@ -218,6 +352,8 @@ $(document).ready(() => {
 
 				$table.append($thead).append($tbody);
 				$('#tableContent').html($table);
+
+				$('#exportButton').on('click', exportExcel);
 
 				// 添加图片点击放大功能
 				$('.product-image').on('click', function () {
@@ -326,173 +462,6 @@ $(document).ready(() => {
 
 		$button.on('click', openDialog);
 	};
-
-	const imageToBase64 = (url) => {
-		return new Promise((resolve, reject) => {
-			const image = new Image();
-			image.src = url;
-			image.crossOrigin = '*';
-			image.onload = () => {
-				const canvas = document.createElement('canvas');
-				canvas.width = image.width;
-				canvas.height = image.height;
-				const ctx = canvas.getContext('2d');
-				ctx.drawImage(image, 0, 0, image.width, image.height);
-				const base64 = canvas.toDataURL('image/png');
-				resolve(base64);
-			};
-		});
-	};
-
-	// 导出表格数据为Excel
-	$('#exportButton').on('click', async () => {
-		const workbook = new ExcelJS.Workbook();
-		const worksheet = workbook.addWorksheet('产品数据');
-
-		const title = $('#popupTitle').text();
-		const label = activeTab.label;
-
-		// 添加标题行（在第一行插入）
-		const titleRow = worksheet.addRow([`类目：${title}【${label}】`]); // 插入到第一行
-		// 合并单元格（A1到C1）
-		worksheet.mergeCells('A1:H1'); // 或使用数字参数：mergeCells(1, 1, 1, 3)
-		// 设置标题样式
-		const titleStyle = {
-			font: {
-				name: '微软雅黑',
-				bold: true,
-				size: 16,
-				color: { argb: 'FFFFFFFF' }, // 白色字体
-			},
-			fill: {
-				type: 'pattern',
-				pattern: 'solid',
-				fgColor: { argb: 'FF4F81BD' }, // 深蓝色背景
-			},
-			alignment: {
-				vertical: 'middle',
-				horizontal: 'center',
-			},
-		};
-		// 应用标题样式（只需要设置合并区域的第一个单元格）
-		titleRow.getCell(1).style = titleStyle;
-
-		// 设置标题行高度
-		titleRow.height = 40;
-		// 设置表头
-		const headers = ['产品图片', '产品描述', '销售价格', '订单数量', '观看次数', '人气度', '最低起订量', '详情链接'];
-		// 添加表头行（现在变为第二行）
-		const headerRow = worksheet.addRow(headers);
-		// 设置表头样式（复用之前的样式配置）
-		const headerStyle = {
-			font: {
-				name: '微软雅黑',
-				bold: true,
-				size: 12,
-				color: { argb: 'FF000000' }, // 黑色字体
-			},
-			fill: {
-				type: 'pattern',
-				pattern: 'solid',
-				fgColor: { argb: 'FFD3D3D3' }, // 浅灰色背景
-			},
-			border: {
-				top: { style: 'thin', color: { argb: 'FF000000' } },
-				bottom: { style: 'thin', color: { argb: 'FF000000' } },
-				left: { style: 'thin', color: { argb: 'FF000000' } },
-				right: { style: 'thin', color: { argb: 'FF000000' } },
-			},
-			alignment: {
-				vertical: 'middle',
-				horizontal: 'center',
-			},
-		};
-		headerRow.eachCell((cell) => (cell.style = headerStyle));
-		headerRow.height = 25;
-
-		// 添加数据
-		productList.forEach(async (product, index) => {
-			const row = worksheet.addRow([
-				'',
-				product.subject,
-				product.price,
-				product.orders,
-				product.views,
-				product.rankScore,
-				product.moq,
-				{ text: '跳转', hyperlink: `https:${product.detail}` },
-			]);
-
-			const rowIdx = index + 3;
-			worksheet.getRow(rowIdx).height = 20;
-
-			// 遍历单元格设置超链接样式
-			row.eachCell((cell) => {
-				if (cell.value && cell.value.hyperlink) {
-					// 超链接专属样式
-					cell.style = {
-						font: {
-							color: { argb: 'FF0000FF' }, // 蓝色
-							underline: true,
-							name: 'Calibri',
-						},
-						alignment: {
-							vertical: 'middle',
-							horizontal: 'center',
-						},
-					};
-					// 可选：移除默认的紫色下划线（覆盖Excel默认样式）
-					cell.value = {
-						text: cell.value.text,
-						hyperlink: cell.value.hyperlink,
-					};
-				} else {
-					// 普通单元格样式
-					cell.style = {
-						font: { name: 'Calibri' },
-						alignment: { vertical: 'middle', horizontal: 'center' },
-					};
-				}
-			});
-
-			// 处理图片
-			const imageUrl = product.image.split('_')[0];
-			// 获取图片的buffer数据
-			const base64 = await imageToBase64(imageUrl);
-
-			const imageId = workbook.addImage({
-				base64: base64,
-				extension: 'png', // 根据实际类型设置
-				width: 50, // 图片宽度
-				height: 50, // 图片高度
-			});
-
-			worksheet.addImage(imageId, {
-				tl: { col: 0, row: rowIdx },
-				ext: { width: 50, height: 50 },
-			});
-		});
-
-		// 自动调整列宽（按内容）
-		worksheet.columns.forEach((column) => {
-			let maxLength = 0;
-			column.eachCell({ includeEmpty: true }, (cell) => {
-				const columnLength = cell.value ? cell.value.toString().length : 10;
-				if (columnLength > maxLength) maxLength = columnLength;
-			});
-			column.width = maxLength * 2;
-		});
-
-		// 导出Excel文件
-		const buffer = await workbook.xlsx.writeBuffer();
-		const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${title}-${label}-数据列表.xlsx`;
-		a.click();
-		URL.revokeObjectURL(url);
-	});
 
 	const getList = () => {
 		const scriptArr = document.querySelectorAll('script');
