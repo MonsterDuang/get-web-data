@@ -313,7 +313,7 @@ $(document).ready(() => {
 
 	// 请求对应的数据
 	const getProductList = (item) => {
-		const api = 'https://insights.alibaba.com/openservice/gatewayService?language=zh&pageNo=1&pageSize=100&';
+		const api = 'https://insights.alibaba.com/openservice/gatewayService?language=zh&pageNo=1&pageSize=500&';
 		const params =
 			smuId === '6622646540'
 				? `modelId=${modelId}&cardId=${item.cardId}&cardType=${item.cardType}`
